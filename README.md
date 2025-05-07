@@ -1,41 +1,181 @@
-<<<<<<< HEAD
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Countdown Project
 
-## Getting Started
+Welcome to the Countdown project! This is a web application built with Next.js, integrated with MongoDB for data storage, and utilizing UploadThing for file uploads. This README provides an overview, setup instructions, and usage details for the project.
 
-First, run the development server:
+Overview
 
-```bash
+The Countdown project is designed to allow users to create and share memories, featuring a form to input titles, descriptions, and images. It leverages modern web technologies to provide a seamless user experience with server-side rendering, database persistence, and file upload capabilities.
+
+
+
+
+
+Frontend: Built with Next.js (version 15.3.2) for a reactive and optimized user interface.
+
+
+
+Backend/Database: Uses MongoDB (via Mongoose, version 8.14.1) for storing memory data.
+
+
+
+File Uploads: Powered by UploadThing (version 7.6.0) for secure and efficient image uploads.
+
+Features
+
+
+
+
+
+Create and store memories with titles, descriptions, and images.
+
+
+
+Image upload functionality using UploadThing.
+
+
+
+Responsive design with Tailwind CSS.
+
+
+
+Authentication and session management (via NextAuth.js).
+
+
+
+Real-time feedback with toast notifications.
+
+Prerequisites
+
+
+
+
+
+Node.js: Version 18.x or later.
+
+
+
+npm: Version 9.x or later.
+
+
+
+MongoDB: A running MongoDB instance (local or remote, e.g., MongoDB Atlas).
+
+
+
+Git: For cloning the repository.
+
+Installation
+
+
+
+
+
+Clone the Repository
+
+git clone https://github.com/your-username/countdown.git
+cd countdown
+
+
+
+Install Dependencies
+
+npm install
+
+
+
+Set Up Environment Variables
+
+
+
+
+
+Create a .env.local file in the root directory.
+
+
+
+Add the following variables (replace with your actual credentials):
+
+MONGODB_URI=your_mongodb_connection_string
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your_nextauth_secret
+UPLOADTHING_SECRET=your_uploadthing_secret
+UPLOADTHING_APP_ID=your_uploadthing_app_id
+
+
+
+Obtain the UPLOADTHING_SECRET and UPLOADTHING_APP_ID from your UploadThing dashboard.
+
+
+
+Set Up MongoDB
+
+
+
+
+
+Ensure your MongoDB instance is running.
+
+
+
+Update the MONGODB_URI in .env.local with your connection string (e.g., mongodb://localhost:27017/countdown or a MongoDB Atlas URL).
+
+Running the Project
+
+
+
+
+
+Start the Development Server
+
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Learn More
 
-To learn more about Next.js, take a look at the following resources:
+Open http://localhost:3000 in your browser to view the app.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+Build for Production
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+npm run build
+npm run start
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-=======
-# Countdown
-Countdown: Next.js app with MongoDB &amp; UploadThing for creating/sharing countdown timers. MIT License.
->>>>>>> 0a4e182224928a79a982994da319ae4104333b39
+
+
+
+
+This builds the app and starts it in production mode.
+
+Usage
+
+
+
+
+
+Creating a Memory:
+
+
+
+
+
+Navigate to /memories/create.
+
+
+
+Fill in the title, description, and upload an image.
+
+
+
+Click "Share Memory" to submit. A success toast will appear, and you’ll be redirected to the memory page.
+
+
+
+Viewing Memories:
+
+
+
+
+
+Memories are stored in MongoDB and can be retrieved via API routes (e.g., /api/memories).
