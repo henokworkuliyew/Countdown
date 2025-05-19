@@ -5,11 +5,12 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { getLatestMemories } from "@/lib/memory-service"
 import HeroSection from "@/components/hero-section"
+import { connectToDatabase } from "../lib/mongodb"
 
 export default async function HomePage() {
   const session = await getServerSession(authOptions)
   const latestMemories = await getLatestMemories(3)
-
+  connectToDatabase()
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Hero Section */}

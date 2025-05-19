@@ -13,6 +13,7 @@ if (!cached) {
 }
 
 export async function connectToDatabase() {
+  console.log('Connecting to MongoDB...')
   if (cached.conn) {
     return cached.conn
   }
