@@ -72,7 +72,7 @@ Installation
 
 Clone the Repository
 
-git clone https://github.com/your-username/countdown.git
+git clone https://github.com/henokworkuliyew/Countdown.git
 cd countdown
 
 
