@@ -1,21 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { connectToDatabase } from '@/lib/mongodb'
 import { Memory } from '@/models/memory'
 import { z } from 'zod'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/lib/auth-config'
 
 const commentSchema = z.object({
   content: z.string().min(1).max(500),
 })
 
-interface Params {
-  params: {
-    id: string
-  }
-}
-
-export async function POST(req: NextRequest, { params }: Params) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     // Authenticate user
     const session = await getServerSession(authOptions)
