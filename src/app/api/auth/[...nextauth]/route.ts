@@ -1,58 +1,48 @@
 import NextAuth, { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import GoogleProvider from 'next-auth/providers/google'
-import GitHubProvider from 'next-auth/providers/github'
-import FacebookProvider from 'next-auth/providers/facebook'
-import TwitterProvider from 'next-auth/providers/twitter'
-// Adjust path
-import { MongoDBAdapter } from '@next-auth/mongodb-adapter'
- // Adjust path
-import bcrypt from 'bcrypt'
 import { connectToDatabase } from '@/lib/mongodb'
-import{ User} from '@/models/user'
-async function getMongoClient() {
-  const mongooseInstance = await connectToDatabase()
-  return mongooseInstance.connection.getClient()
-}
+import bcrypt from 'bcryptjs'
+import { User } from '@/models/user'
 
 export const authOptions: NextAuthOptions = {
-  adapter: MongoDBAdapter(getMongoClient()), // Optional if using other providers
   providers: [
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        username: { label: 'Email', type: 'text' },
+        email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        const { username, password } = credentials || {}
-        if (!username || !password) {
+        const { email, password } = credentials || {}
+        if (!email || !password) {
+          console.log('Missing credentials')
           return null
         }
 
         try {
-          // Connect to the database
           await connectToDatabase()
 
-          // Find user by email
-          const user = await User.findOne({ email: username })
+          const user = await User.findOne({ email })
           if (!user) {
-            console.log('No user found with email:', username)
+            console.log('No user found with email:', email)
             return null
           }
 
           // Compare password
           const isValid = await bcrypt.compare(password, user.password)
           if (!isValid) {
-            console.log('Invalid password for user:', username)
+            console.log('Invalid password for user:', email)
             return null
           }
+
+          console.log('User authenticated successfully:', email)
 
           // Return user object
           return {
             id: user._id.toString(),
             name: user.name,
             email: user.email,
+            image: user.image,
           }
         } catch (error) {
           console.error('Authorization error:', error)
@@ -60,46 +50,43 @@ export const authOptions: NextAuthOptions = {
         }
       },
     }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-    GitHubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-    }),
-    FacebookProvider({
-      clientId: process.env.FACEBOOK_CLIENT_ID!,
-      clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
-    }),
-    TwitterProvider({
-      clientId: process.env.TWITTER_CLIENT_ID!,
-      clientSecret: process.env.TWITTER_CLIENT_SECRET!,
-      version: '2.0',
-    }),
   ],
   session: {
     strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  jwt: {
-    secret: process.env.NEXTAUTH_SECRET,
-  },
+  secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-development',
+  jwt: {},
   pages: {
     signIn: '/auth/login',
+    newUser: '/auth/signup',
   },
+  debug: process.env.NODE_ENV === 'development',
   callbacks: {
-    async jwt({ token, user, account, profile }) {
-      if (user) {
+    async jwt({ token, user, account }) {
+      if (user && user.id) {
+        console.log('JWT callback - user:', user.id)
         token.id = user.id
+      } else {
+        console.log('JWT callback - no user or user.id:', { hasUser: !!user, userId: user?.id })
       }
-      if (account) {
+      if (account && account.access_token) {
         token.accessToken = account.access_token
       }
       return token
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string
+      console.log('Session callback - token:', token)
+      if (session.user && token && token.id && typeof token.id === 'string') {
+        session.user.id = token.id
+        console.log('Session callback - user ID set:', session.user.id)
+      } else {
+        console.log('Session callback - missing required data:', { 
+          hasUser: !!session.user, 
+          hasToken: !!token, 
+          hasTokenId: !!(token && token.id),
+          tokenIdType: token && token.id ? typeof token.id : 'undefined'
+        })
       }
       return session
     },
