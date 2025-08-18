@@ -1,164 +1,293 @@
 'use client'
 
-import type React from 'react'
 import { useState, useCallback } from 'react'
-import { useDropzone } from 'react-dropzone'
-import { Upload, X, Loader2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useDropzone, type FileRejection } from 'react-dropzone'
+import { Upload, X, ImageIcon, CheckCircle, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useToast } from '@/hooks/use-toast'
-import { useUploadThing } from '@/lib/uploadthing'
 
 interface ImageUploadProps {
-  onChange: (url: string) => void
-  value: string
-  endpoint: 'memoryImage' | 'profileImage'
+  onImageUpload: (file: File) => void
+  onImageRemove?: () => void
+  currentImage?: string
   className?: string
+  maxSize?: number // in MB
+  acceptedTypes?: string[]
 }
 
 export default function ImageUpload({
-  onChange,
-  value,
-  endpoint,
+  onImageUpload,
+  onImageRemove,
+  currentImage,
   className = '',
+  maxSize = 5,
+  acceptedTypes = ['image/jpeg', 'image/png', 'image/webp'],
 }: ImageUploadProps) {
-  const [imagePreview, setImagePreview] = useState<string | null>(value || null)
-  const { toast } = useToast()
-  const { startUpload, isUploading } = useUploadThing(endpoint)
+  const [uploadedImage, setUploadedImage] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string>(currentImage || '')
+  const [isDragActive, setIsDragActive] = useState(false)
+  const [error, setError] = useState<string>('')
 
   const onDrop = useCallback(
-    async (acceptedFiles: File[]) => {
-      try {
+    (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
+      setError('')
+
+      if (rejectedFiles.length > 0) {
+        const rejection = rejectedFiles[0]
+        if (rejection.errors[0]?.code === 'file-too-large') {
+          setError(`File is too large. Maximum size is ${maxSize}MB.`)
+        } else if (rejection.errors[0]?.code === 'file-invalid-type') {
+          setError(
+            'Invalid file type. Please upload an image (JPEG, PNG, or WebP).'
+          )
+        } else {
+          setError('Error uploading file. Please try again.')
+        }
+        return
+      }
+
+      if (acceptedFiles.length > 0) {
         const file = acceptedFiles[0]
 
-        if (!file) {
-          throw new Error('No file selected')
+        // Validate file size
+        if (file.size > maxSize * 1024 * 1024) {
+          setError(`File is too large. Maximum size is ${maxSize}MB.`)
+          return
         }
 
-        // Debug: Log file details
-        console.log('Uploading file:', file.name, file.size, file.type)
-
-        // Create preview
-        const reader = new FileReader()
-        reader.onloadend = () => {
-          setImagePreview(reader.result as string)
-        }
-        reader.readAsDataURL(file)
-
-        // Upload using uploadthing
-        const uploadResult = await startUpload([file])
-
-        // Debug: Log upload result
-        console.log('Upload result:', uploadResult)
-
-        if (!uploadResult || uploadResult.length === 0) {
-          throw new Error('Upload failed')
+        // Validate file type
+        if (!acceptedTypes.includes(file.type)) {
+          setError(
+            'Invalid file type. Please upload an image (JPEG, PNG, or WebP).'
+          )
+          return
         }
 
-        // Get the URL from the result
-        const imageUrl = uploadResult[0].url
-
-        // Call the onChange function with the URL
-        onChange(imageUrl)
-
-        toast({
-          title: 'Upload successful',
-          description: 'Your image has been uploaded successfully',
-        })
-      } catch (error) {
-        console.error('Upload error:', error)
-        toast({
-          title: 'Upload failed',
-          description:
-            error instanceof Error
-              ? error.message
-              : 'Something went wrong during upload',
-          variant: 'destructive',
-        })
-        // Reset preview if upload failed
-        if (!value) {
-          setImagePreview(null)
-        } else {
-          setImagePreview(value)
-        }
+        setUploadedImage(file)
+        const url = URL.createObjectURL(file)
+        setPreviewUrl(url)
+        onImageUpload(file)
       }
     },
-    [onChange, startUpload, toast, value]
+    [maxSize, acceptedTypes, onImageUpload]
   )
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragReject } = useDropzone({
     onDrop,
     accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'],
+      'image/*': acceptedTypes,
     },
-    maxFiles: 1,
-    disabled: isUploading,
+    maxSize: maxSize * 1024 * 1024,
+    multiple: false,
+    onDragEnter: () => setIsDragActive(true),
+    onDragLeave: () => setIsDragActive(false),
   })
 
-  const handleRemove = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setImagePreview(null)
-    onChange('')
+  const handleRemoveImage = () => {
+    setUploadedImage(null)
+    setPreviewUrl('')
+    setError('')
+    if (onImageRemove) {
+      onImageRemove()
+    }
   }
 
-  return (
-    <div
-      {...getRootProps()}
-      className={`relative cursor-pointer border-2 border-dashed rounded-lg transition-all ${
-        isDragActive
-          ? 'border-blue-500 bg-blue-50'
-          : 'border-gray-300 hover:bg-gray-50'
-      } ${className}`}
-    >
-      <input {...getInputProps()} />
+  const containerVariants = {
+    idle: { scale: 1, borderColor: '#e5e7eb' },
+    dragActive: { scale: 1.02, borderColor: '#3b82f6' },
+    dragReject: { scale: 0.98, borderColor: '#ef4444' },
+  }
 
-      {imagePreview ? (
-        <div className="relative h-full w-full">
-          <img
-            src={imagePreview || '/placeholder.svg'}
-            alt="Uploaded"
-            className="h-full w-full object-cover rounded-lg"
-          />
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-            {!isUploading && (
-              <>
-                <p className="text-white font-medium">
-                  Click or drop to change image
-                </p>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2"
-                  onClick={handleRemove}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center p-6">
-          {isUploading ? (
-            <div className="flex flex-col items-center gap-2">
-              <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />
-              <p className="text-sm text-gray-500">Uploading...</p>
-            </div>
+  const {
+    onClick,
+    onKeyDown,
+    onFocus,
+    onBlur,
+    onDrop: dropzoneOnDrop,
+    onDragEnter,
+    onDragLeave,
+    onDragOver,
+    tabIndex,
+    role,
+    ...otherRootProps
+  } = getRootProps()
+
+  return (
+    <div className={`space-y-4 ${className}`}>
+      {/* Upload Area */}
+      <motion.div
+        onClick={onClick}
+        onKeyDown={onKeyDown}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onDragEnter={onDragEnter}
+        onDragLeave={onDragLeave}
+        onDragOver={onDragOver}
+        tabIndex={tabIndex}
+        role={role}
+        variants={containerVariants}
+        animate={
+          isDragReject ? 'dragReject' : isDragActive ? 'dragActive' : 'idle'
+        }
+        transition={{ duration: 0.2 }}
+        className={`
+          relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer
+          transition-all duration-200 ease-in-out
+          ${
+            isDragActive
+              ? 'border-blue-500 bg-blue-50'
+              : isDragReject
+              ? 'border-red-500 bg-red-50'
+              : 'border-gray-300 bg-gray-50 hover:border-gray-400 hover:bg-gray-100'
+          }
+        `}
+        style={{ pointerEvents: 'auto' }}
+      >
+        <input {...getInputProps()} />
+
+        <AnimatePresence mode="wait">
+          {previewUrl ? (
+            <motion.div
+              key="preview"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.3 }}
+              className="relative"
+            >
+              <img
+                src={previewUrl || '/placeholder.svg'}
+                alt="Preview"
+                className="max-h-64 mx-auto rounded-lg shadow-lg"
+              />
+
+              {/* Remove Button */}
+              <motion.button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleRemoveImage()
+                }}
+                className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors duration-200 shadow-lg"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <X className="w-4 h-4" />
+              </motion.button>
+
+              {/* Success Indicator */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3, duration: 0.3 }}
+                className="absolute -bottom-2 -left-2 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center shadow-lg"
+              >
+                <CheckCircle className="w-4 h-4" />
+              </motion.div>
+            </motion.div>
           ) : (
-            <>
-              <Upload className="h-10 w-10 text-gray-400 mb-2" />
-              <p className="text-sm font-medium text-gray-700">
-                {isDragActive
-                  ? 'Drop the image here'
-                  : 'Drag & drop an image here'}
+            <motion.div
+              key="upload"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <ImageIcon className="w-10 h-10 text-blue-600" />
+              </div>
+
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                {isDragActive ? 'Drop your image here' : 'Upload an image'}
+              </h3>
+
+              <p className="text-gray-500 mb-4">
+                Drag and drop your image here, or click to browse
               </p>
-              <p className="text-xs text-gray-500 mt-1">or click to browse</p>
-              <p className="text-xs text-gray-400 mt-2">
-                PNG, JPG, JPEG, GIF up to 16MB
-              </p>
-            </>
+
+              <div className="flex items-center justify-center gap-4 text-sm text-gray-400">
+                <span>JPEG, PNG, WebP</span>
+                <span>•</span>
+                <span>Max {maxSize}MB</span>
+              </div>
+
+              <Button
+                variant="outline"
+                className="mt-4 border-blue-300 text-blue-600 hover:bg-blue-50 bg-transparent"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Choose File
+              </Button>
+            </motion.div>
           )}
-        </div>
+        </AnimatePresence>
+
+        {/* Drag Overlay */}
+        {isDragActive && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-blue-500/10 rounded-2xl flex items-center justify-center"
+          >
+            <div className="text-center">
+              <Upload className="w-16 h-16 text-blue-500 mx-auto mb-4" />
+              <p className="text-xl font-bold text-blue-700">
+                Drop your image here
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </motion.div>
+
+      {/* Error Message */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, y: -10 }}
+            animate={{ opacity: 1, height: 'auto', y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg"
+          >
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <p className="text-red-700 text-sm">{error}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Upload Progress (Optional) */}
+      {uploadedImage && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+          className="bg-green-50 border border-green-200 rounded-lg p-4"
+        >
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-green-500" />
+            <div>
+              <p className="text-green-700 font-medium">
+                Image uploaded successfully!
+              </p>
+              <p className="text-green-600 text-sm">
+                {uploadedImage.name} (
+                {(uploadedImage.size / 1024 / 1024).toFixed(2)} MB)
+              </p>
+            </div>
+          </div>
+        </motion.div>
       )}
+
+      {/* Help Text */}
+      <div className="text-center">
+        <p className="text-sm text-gray-500">
+          Supported formats: JPEG, PNG, WebP • Maximum size: {maxSize}MB
+        </p>
+        <p className="text-xs text-gray-400 mt-1">
+          For best results, use high-quality images with good lighting
+        </p>
+      </div>
     </div>
   )
 }

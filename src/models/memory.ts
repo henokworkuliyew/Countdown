@@ -1,49 +1,91 @@
-import mongoose, { Schema, models } from "mongoose"
+import mongoose, { Schema, type Document } from 'mongoose'
 
-const commentSchema = new Schema({
-  content: {
-    type: String,
-    required: [true, "Comment content is required"],
-  },
-  author: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
-    required: [true, "Comment author is required"],
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-})
+interface IComment {
+  _id: mongoose.Types.ObjectId
+  content: string
+  author: mongoose.Types.ObjectId
+  createdAt: Date
+  likes: number
+  replies: IComment[]
+}
 
-const memorySchema = new Schema(
+export interface IMemory extends Document {
+  title: string
+  description: string
+  imageUrl?: string
+  author: mongoose.Types.ObjectId
+  likes: number
+  comments: IComment[]
+  createdAt: Date
+  updatedAt: Date
+}
+
+const CommentSchema = new Schema(
   {
-    title: {
+    content: {
       type: String,
-      required: [true, "Title is required"],
-    },
-    description: {
-      type: String,
-      required: [true, "Description is required"],
-    },
-    imageUrl: {
-      type: String,
-      required: [true, "Image URL is required"],
+      required: true,
     },
     author: {
       type: Schema.Types.ObjectId,
-      ref: "User",
-      required: [true, "Author is required"],
+      ref: 'User',
+      required: true,
     },
     likes: {
       type: Number,
       default: 0,
     },
-    comments: [commentSchema],
+    replies: [
+      {
+        content: String,
+        author: {
+          type: Schema.Types.ObjectId,
+          ref: 'User',
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+        likes: {
+          type: Number,
+          default: 0,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
-  },
+  }
 )
 
-export const Memory = models.Memory || mongoose.model("Memory", memorySchema)
+const MemorySchema = new Schema<IMemory>(
+  {
+    title: {
+      type: String,
+      required: true,
+    },
+    description: {
+      type: String,
+      required: true,
+    },
+    imageUrl: {
+      type: String,
+    },
+    author: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    likes: {
+      type: Number,
+      default: 0,
+    },
+    comments: [CommentSchema],
+  },
+  {
+    timestamps: true,
+  }
+)
+
+export const Memory =
+  mongoose.models.Memory || mongoose.model<IMemory>('Memory', MemorySchema)
