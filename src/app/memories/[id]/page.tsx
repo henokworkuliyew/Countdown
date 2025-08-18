@@ -10,15 +10,16 @@ import { notFound } from 'next/navigation'
 import CommentSection from '@/components/comment-section'
 import { authOptions } from '@/lib/auth'
 
-
 interface MemoryPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
+
 export default async function MemoryPage({ params }: MemoryPageProps) {
+  const { id } = await params
   const session = await getServerSession(authOptions)
-  const memory = await getMemoryById(params.id)
+  const memory = await getMemoryById(id)
 
   if (!memory) {
     notFound()
