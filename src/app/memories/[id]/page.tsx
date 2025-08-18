@@ -1,14 +1,14 @@
-import { Suspense } from "react"
-import Link from "next/link"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import { getMemoryById } from "@/lib/memory-service"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { formatDistanceToNow } from "date-fns"
-import { Heart, MessageCircle, Share2, ArrowLeft } from "lucide-react"
-import { notFound } from "next/navigation"
-import CommentSection from "@/components/comment-section"
+import { Suspense } from 'react'
+import Link from 'next/link'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { getMemoryById } from '@/lib/memory-service'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { formatDistanceToNow } from 'date-fns'
+import { Heart, MessageCircle, Share2, ArrowLeft } from 'lucide-react'
+import { notFound } from 'next/navigation'
+import CommentSection from '@/components/comment-section'
 
 interface MemoryPageProps {
   params: {
@@ -39,7 +39,7 @@ export default async function MemoryPage({ params }: MemoryPageProps) {
               <div className="bg-white rounded-lg overflow-hidden shadow-md">
                 <div className="relative h-[400px]">
                   <img
-                    src={memory.imageUrl || "/placeholder.svg"}
+                    src={memory.imageUrl || '/placeholder.svg'}
                     alt={memory.title}
                     className="w-full h-full object-cover"
                   />
@@ -48,7 +48,10 @@ export default async function MemoryPage({ params }: MemoryPageProps) {
                   <div className="flex items-center gap-3 mb-4">
                     <div className="h-10 w-10 rounded-full overflow-hidden bg-blue-100">
                       <img
-                        src={memory.author.image || "/placeholder.svg?height=40&width=40"}
+                        src={
+                          memory.author.image ||
+                          '/placeholder.svg?height=40&width=40'
+                        }
                         alt={memory.author.name}
                         className="h-full w-full object-cover"
                       />
@@ -56,12 +59,16 @@ export default async function MemoryPage({ params }: MemoryPageProps) {
                     <div>
                       <p className="font-medium">{memory.author.name}</p>
                       <p className="text-sm text-gray-500">
-                        {formatDistanceToNow(new Date(memory.createdAt), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(memory.createdAt), {
+                          addSuffix: true,
+                        })}
                       </p>
                     </div>
                   </div>
                   <h1 className="text-3xl font-bold mb-4">{memory.title}</h1>
-                  <p className="text-gray-700 whitespace-pre-line">{memory.description}</p>
+                  <p className="text-gray-700 whitespace-pre-line">
+                    {memory.description}
+                  </p>
 
                   <div className="flex items-center gap-6 mt-8 pt-4 border-t">
                     <Button variant="ghost" className="gap-2">
@@ -84,7 +91,29 @@ export default async function MemoryPage({ params }: MemoryPageProps) {
             <div className="lg:col-span-1">
               <Card>
                 <CardContent className="p-6">
-                  <CommentSection memoryId={memory._id.toString()} comments={memory.comments} />
+                  <CommentSection
+                    memoryId={memory._id.toString()}
+                    comments={memory.comments}
+                    onAddComment={async (content: string) => {
+                      // TODO: Implement add comment functionality
+                      console.log('[v0] Adding comment:', content)
+                    }}
+                    onLikeComment={async (commentId: string) => {
+                      // TODO: Implement like comment functionality
+                      console.log('[v0] Liking comment:', commentId)
+                    }}
+                    onReplyToComment={async (
+                      commentId: string,
+                      content: string
+                    ) => {
+                      // TODO: Implement reply to comment functionality
+                      console.log(
+                        '[v0] Replying to comment:',
+                        commentId,
+                        content
+                      )
+                    }}
+                  />
                 </CardContent>
               </Card>
             </div>

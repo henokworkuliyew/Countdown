@@ -1,102 +1,61 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useRef, useEffect } from "react"
-import { Send, Smile, Paperclip, ImageIcon } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Send, MessageCircle, Users, Paperclip, Smile, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface Message {
   id: string
   content: string
-  sender: {
+  author: {
     id: string
     name: string
-    avatar: string
+    image?: string
   }
   timestamp: Date
+  type: "text" | "image" | "system"
 }
 
-interface User {
-  id: string
-  name: string
-  avatar: string
-  status: "online" | "offline"
-  lastSeen?: Date
+interface ChatSystemProps {
+  className?: string
 }
 
-// Sample data
-const currentUser: User = {
-  id: "user1",
-  name: "You",
-  avatar: "/placeholder.svg?height=40&width=40",
-  status: "online",
-}
-
-const users: User[] = [
-  {
-    id: "user2",
-    name: "Abebe Kebede",
-    avatar: "/placeholder.svg?height=40&width=40",
-    status: "online",
-  },
-  {
-    id: "user3",
-    name: "Tigist Haile",
-    avatar: "/placeholder.svg?height=40&width=40",
-    status: "offline",
-    lastSeen: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-  },
-  {
-    id: "user4",
-    name: "Dawit Mekonnen",
-    avatar: "/placeholder.svg?height=40&width=40",
-    status: "online",
-  },
-  {
-    id: "user5",
-    name: "Sara Tekle",
-    avatar: "/placeholder.svg?height=40&width=40",
-    status: "offline",
-    lastSeen: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-  },
-]
-
-const initialMessages: Message[] = [
-  {
-    id: "msg1",
-    content: "Hey everyone! How's the graduation preparation going?",
-    sender: users[0],
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-  },
-  {
-    id: "msg2",
-    content: "I'm so excited! Just got my graduation gown yesterday.",
-    sender: users[1],
-    timestamp: new Date(Date.now() - 1000 * 60 * 60), // 1 hour ago
-  },
-  {
-    id: "msg3",
-    content: "Has anyone heard about the after-party location?",
-    sender: currentUser,
-    timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-  },
-  {
-    id: "msg4",
-    content: "I think it's at the Blue Nile Hotel, but let me confirm with the committee.",
-    sender: users[2],
-    timestamp: new Date(Date.now() - 1000 * 60 * 15), // 15 minutes ago
-  },
-]
-
-export default function ChatSystem() {
-  const [messages, setMessages] = useState<Message[]>(initialMessages)
+export default function ChatSystem({ className }: ChatSystemProps) {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "1",
+      content: "Hey everyone! How's the graduation preparation going? 🎓",
+      author: { id: "1", name: "Tigist Haile", image: "/placeholder.svg" },
+      timestamp: new Date(Date.now() - 1000 * 60 * 30),
+      type: "text",
+    },
+    {
+      id: "2",
+      content: "I'm so excited! Can't believe it's almost here 😊",
+      author: { id: "2", name: "Dawit Mekonnen", image: "/placeholder.svg" },
+      timestamp: new Date(Date.now() - 1000 * 60 * 25),
+      type: "text",
+    },
+    {
+      id: "3",
+      content: "Anyone else nervous about the ceremony?",
+      author: { id: "3", name: "Sara Tekle", image: "/placeholder.svg" },
+      timestamp: new Date(Date.now() - 1000 * 60 * 20),
+      type: "text",
+    },
+    {
+      id: "4",
+      content: "We've got this! We've been through 4 years together 💪",
+      author: { id: "4", name: "Abebe Kebede", image: "/placeholder.svg" },
+      timestamp: new Date(Date.now() - 1000 * 60 * 15),
+      type: "text",
+    },
+  ])
   const [newMessage, setNewMessage] = useState("")
-  const [activeTab, setActiveTab] = useState("chat")
+  const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -108,20 +67,35 @@ export default function ChatSystem() {
   }, [messages])
 
   const handleSendMessage = () => {
-    if (newMessage.trim() === "") return
+    if (!newMessage.trim()) return
 
     const message: Message = {
-      id: `msg${Date.now()}`,
+      id: Date.now().toString(),
       content: newMessage,
-      sender: currentUser,
+      author: { id: "current-user", name: "You", image: "/placeholder.svg" },
       timestamp: new Date(),
+      type: "text",
     }
 
     setMessages([...messages, message])
     setNewMessage("")
+    setIsTyping(true)
+
+    // Simulate typing indicator
+    setTimeout(() => {
+      setIsTyping(false)
+      const botMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "Thanks for sharing! This is going to be an amazing graduation ceremony! 🎉",
+        author: { id: "bot", name: "Class Bot", image: "/placeholder.svg" },
+        timestamp: new Date(),
+        type: "text",
+      }
+      setMessages(prev => [...prev, botMessage])
+    }, 2000)
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handleSendMessage()
@@ -132,162 +106,168 @@ export default function ChatSystem() {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
   }
 
-  const formatLastSeen = (date?: Date) => {
-    if (!date) return "Unknown"
+  const isToday = (date: Date) => {
+    const today = new Date()
+    return date.toDateString() === today.toDateString()
+  }
 
-    const now = new Date()
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
-
-    if (diffInMinutes < 1) return "Just now"
-    if (diffInMinutes < 60) return `${diffInMinutes} min ago`
-
-    const diffInHours = Math.floor(diffInMinutes / 60)
-    if (diffInHours < 24) return `${diffInHours} hr ago`
-
-    return date.toLocaleDateString()
+  const formatDate = (date: Date) => {
+    if (isToday(date)) {
+      return "Today"
+    }
+    return date.toLocaleDateString([], { month: "short", day: "numeric" })
   }
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-white shadow-md">
-      <Tabs defaultValue="chat" onValueChange={setActiveTab} value={activeTab}>
-        <div className="border-b">
-          <TabsList className="w-full justify-start rounded-none border-b px-4">
-            <TabsTrigger
-              value="chat"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none"
-            >
-              Chat
-            </TabsTrigger>
-            <TabsTrigger
-              value="people"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none"
-            >
-              People
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="chat" className="p-0 m-0">
-          <div className="flex flex-col h-[500px]">
-            <ScrollArea className="flex-1 p-4">
-              {messages.map((message, index) => (
-                <div
-                  key={message.id}
-                  className={`flex mb-4 ${message.sender.id === currentUser.id ? "justify-end" : "justify-start"}`}
-                >
-                  {message.sender.id !== currentUser.id && (
-                    <Avatar className="h-8 w-8 mr-2">
-                      <AvatarImage src={message.sender.avatar || "/placeholder.svg"} alt={message.sender.name} />
-                      <AvatarFallback>{message.sender.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div>
-                    {message.sender.id !== currentUser.id && (
-                      <div className="text-xs text-gray-500 mb-1">{message.sender.name}</div>
-                    )}
-                    <div
-                      className={`rounded-lg px-3 py-2 max-w-xs md:max-w-md break-words ${
-                        message.sender.id === currentUser.id ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {message.content}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">{formatTime(message.timestamp)}</div>
-                  </div>
-                  {message.sender.id === currentUser.id && (
-                    <Avatar className="h-8 w-8 ml-2">
-                      <AvatarImage src={message.sender.avatar || "/placeholder.svg"} alt={message.sender.name} />
-                      <AvatarFallback>{message.sender.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                  )}
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </ScrollArea>
-
-            <div className="border-t p-4">
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" className="rounded-full">
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon" className="rounded-full">
-                  <ImageIcon className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon" className="rounded-full">
-                  <Smile className="h-4 w-4" />
-                </Button>
-                <Input
-                  placeholder="Type a message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={newMessage.trim() === ""}
-                  size="icon"
-                  className="rounded-full bg-blue-600 hover:bg-blue-700"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
+    <div className={`bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden ${className}`}>
+      {/* Chat Header */}
+      <motion.div
+        className="bg-gradient-to-r from-blue-600 to-purple-700 text-white p-6"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+              <MessageCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">Class Chat</h2>
+              <p className="text-blue-100 text-sm">Stay connected with your classmates</p>
             </div>
           </div>
-        </TabsContent>
-
-        <TabsContent value="people" className="p-0 m-0">
-          <div className="h-[500px]">
-            <ScrollArea className="h-full">
-              <div className="p-4">
-                <h3 className="text-sm font-medium text-gray-500 mb-2">ONLINE</h3>
-                {users
-                  .filter((user) => user.status === "online")
-                  .map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-md cursor-pointer"
-                    >
-                      <div className="relative">
-                        <Avatar>
-                          <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                          <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white"></span>
-                      </div>
-                      <div>
-                        <div className="font-medium">{user.name}</div>
-                        <div className="text-xs text-gray-500">Online</div>
-                      </div>
-                    </div>
-                  ))}
-
-                <h3 className="text-sm font-medium text-gray-500 mt-6 mb-2">OFFLINE</h3>
-                {users
-                  .filter((user) => user.status === "offline")
-                  .map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-md cursor-pointer"
-                    >
-                      <div className="relative">
-                        <Avatar>
-                          <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                          <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-gray-300 border-2 border-white"></span>
-                      </div>
-                      <div>
-                        <div className="font-medium">{user.name}</div>
-                        <div className="text-xs text-gray-500">Last seen {formatLastSeen(user.lastSeen)}</div>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </ScrollArea>
+          <div className="flex items-center gap-2">
+            <div className="flex -space-x-2">
+              {[1, 2, 3, 4].map((i) => (
+                <Avatar key={i} className="w-8 h-8 border-2 border-white">
+                  <AvatarImage src={`/placeholder.svg?height=32&width=32&text=${i}`} />
+                  <AvatarFallback className="bg-blue-400 text-white text-xs">
+                    {i}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+            </div>
+            <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+              <MoreVertical className="w-4 h-4" />
+            </Button>
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </motion.div>
+
+      {/* Messages Container */}
+      <div className="h-96 overflow-y-auto p-6 bg-gray-50">
+        <AnimatePresence>
+          {messages.map((message, index) => (
+            <motion.div
+              key={message.id}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.3, delay: index * 0.1 }}
+              className={`mb-4 flex ${message.author.id === "current-user" ? "justify-end" : "justify-start"}`}
+            >
+              <div className={`flex gap-3 max-w-xs lg:max-w-md ${message.author.id === "current-user" ? "flex-row-reverse" : ""}`}>
+                {message.author.id !== "current-user" && (
+                  <Avatar className="w-8 h-8 flex-shrink-0">
+                    <AvatarImage src={message.author.image} />
+                    <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-500 text-white text-xs">
+                      {message.author.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+                
+                <div className={`flex flex-col ${message.author.id === "current-user" ? "items-end" : "items-start"}`}>
+                  {message.author.id !== "current-user" && (
+                    <span className="text-xs text-gray-500 mb-1">{message.author.name}</span>
+                  )}
+                  
+                  <div
+                    className={`px-4 py-3 rounded-2xl ${
+                      message.author.id === "current-user"
+                        ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
+                        : "bg-white text-gray-800 border border-gray-200"
+                    } shadow-sm`}
+                  >
+                    <p className="text-sm leading-relaxed">{message.content}</p>
+                  </div>
+                  
+                  <span className="text-xs text-gray-400 mt-1">
+                    {formatTime(message.timestamp)}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {/* Typing Indicator */}
+        {isTyping && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex justify-start mb-4"
+          >
+            <div className="flex gap-3">
+              <Avatar className="w-8 h-8">
+                <AvatarFallback className="bg-gradient-to-br from-green-400 to-blue-500 text-white text-xs">
+                  B
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col">
+                <span className="text-xs text-gray-500 mb-1">Class Bot</span>
+                <div className="bg-white px-4 py-3 rounded-2xl border border-gray-200 shadow-sm">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Message Input */}
+      <motion.div
+        className="p-4 bg-white border-t border-gray-100"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <div className="flex gap-3">
+          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600">
+            <Paperclip className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600">
+            <Smile className="w-4 h-4" />
+          </Button>
+          
+          <div className="flex-1 relative">
+            <Input
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Type your message..."
+              className="pr-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+          
+          <Button
+            onClick={handleSendMessage}
+            disabled={!newMessage.trim()}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+        
+        <p className="text-xs text-gray-400 mt-2 text-center">
+          Press Enter to send, Shift+Enter for new line
+        </p>
+      </motion.div>
     </div>
   )
 }
