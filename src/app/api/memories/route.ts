@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { connectToDatabase } from "@/lib/mongodb"
 import { Memory } from "@/models/memory"
 import { z } from "zod"
+import { authOptions } from "@/lib/auth"
 
 const memorySchema = z.object({
   title: z.string().min(3).max(100),

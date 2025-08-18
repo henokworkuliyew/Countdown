@@ -2,11 +2,11 @@ import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { getLatestMemories } from "@/lib/memory-service"
 import HeroSection from "@/components/hero-section"
 import MainNavigation from "@/components/main-navigation"
 import { connectToDatabase } from "../lib/mongodb"
+import { authOptions } from "@/lib/auth"
 
 export default async function HomePage() {
   const session = await getServerSession(authOptions)

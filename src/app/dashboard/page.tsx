@@ -1,5 +1,4 @@
 import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -9,6 +8,7 @@ import { getUserMemories } from "@/lib/memory-service"
 import { formatDistanceToNow } from "date-fns"
 import CountdownTimer from "@/components/countdown-timer"
 import { Calendar, ImageIcon, MessageSquare, Plus, Trophy, Star, Users, TrendingUp } from "lucide-react"
+import { authOptions } from "@/lib/auth"
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
