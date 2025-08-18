@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { connectToDatabase } from '@/lib/mongodb'
 import { Memory } from '@/models/memory'
 import { z } from 'zod'
-import { authOptions } from '@/lib/auth-config'
+import { authOptions } from '@/lib/auth'
 
 const commentSchema = z.object({
   content: z.string().min(1).max(500),
