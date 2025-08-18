@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { useRouter } from "next/navigation"
+import { signIn } from "next-auth/react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -66,8 +67,21 @@ export default function SignupPage() {
         return
       }
 
-      // Redirect to login page after successful registration
-      router.push("/auth/login?registered=true")
+      // Automatically sign in the user after successful registration
+      const signInResult = await signIn('credentials', {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      })
+
+      if (signInResult?.error) {
+        setError('Account created but automatic sign-in failed. Please sign in manually.')
+        return
+      }
+
+      // Redirect to dashboard
+      router.push('/dashboard')
+      router.refresh()
     } catch (error) {
       setError("An unexpected error occurred. Please try again.")
       console.error("Registration error:", error)
