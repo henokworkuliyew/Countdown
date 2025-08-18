@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import Link from "next/link"
 import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { getAllMemories } from "@/lib/memory-service"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
