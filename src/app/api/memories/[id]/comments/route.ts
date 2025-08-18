@@ -11,9 +11,11 @@ const commentSchema = z.object({
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    const { params } = context
+
     // Authenticate user
     const session = await getServerSession(authOptions)
     if (!session || !session.user?.id) {
