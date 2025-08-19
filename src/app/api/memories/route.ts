@@ -12,6 +12,7 @@ const memorySchema = z.object({
 })
 
 export async function POST(req: Request) {
+  
   try {
     const session = await getServerSession(authOptions)
 
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
-
+    console.log('ImageUrl',body)
     // Validate input
     const result = memorySchema.safeParse(body)
     if (!result.success) {
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
     }
 
     const { title, description, imageUrl } = result.data
-
+    
     // Connect to database
     await connectToDatabase()
 

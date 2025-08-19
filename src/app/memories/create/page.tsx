@@ -48,6 +48,7 @@ export default function CreateMemoryPage() {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const { toast } = useToast()
 
   const form = useForm<MemoryFormValues>({
@@ -64,7 +65,13 @@ export default function CreateMemoryPage() {
       setIsLoading(true)
       setError(null)
 
-      // Create memory with the uploaded image URL
+      if (!data.imageUrl) {
+        setError('Please upload an image before submitting.')
+        return
+      }
+
+      console.log('[v0] Submitting memory with data:', data)
+
       const response = await fetch('/api/memories', {
         method: 'POST',
         headers: {
@@ -84,13 +91,11 @@ export default function CreateMemoryPage() {
         return
       }
 
-      // Show success toast
       toast({
         title: 'Memory created',
         description: 'Your memory has been shared successfully!',
       })
 
-      // Redirect to the memory page
       router.push(`/memories/${result.memory._id}`)
       router.refresh()
     } catch (error) {
@@ -171,23 +176,58 @@ export default function CreateMemoryPage() {
                     <FormItem>
                       <FormLabel>Image</FormLabel>
                       <FormControl>
-                        <UploadDropzone
-                          className="p-2 border border-gray-600"
-                          endpoint="imageUploader"
-                          onClientUploadComplete={(res) => {
-                            // Update form with uploaded image URL
-                            form.setValue('imageUrl', res[0].url)
-                          }}
-                          onUploadError={(error) => {
-                            console.log('Error uploading image:', error)
-                            toast({
-                              title: 'Upload Error',
-                              description:
-                                'Failed to upload image. Please try again.',
-                              variant: 'destructive',
-                            })
-                          }}
-                        />
+                        <div>
+                          <UploadDropzone
+                            className="p-2 border border-gray-600"
+                            endpoint="imageUploader"
+                            onUploadBegin={() => {
+                              console.log('[v0] Upload started')
+                              setIsUploading(true)
+                              setError(null)
+                            }}
+                            onClientUploadComplete={(res) => {
+                              console.log('[v0] Upload completed:', res)
+                              if (res && res[0] && res[0].url) {
+                                form.setValue('imageUrl', res[0].url)
+                                form.clearErrors('imageUrl')
+                                toast({
+                                  title: 'Upload successful',
+                                  description:
+                                    'Your image has been uploaded successfully!',
+                                })
+                              } else {
+                                console.error(
+                                  '[v0] No URL returned from upload'
+                                )
+                                setError(
+                                  'Upload completed but no URL was returned. Please try again.'
+                                )
+                              }
+                              setIsUploading(false)
+                            }}
+                            onUploadError={(error) => {
+                              console.error('[v0] Upload error:', error)
+                              setError(`Upload failed: ${error.message}`)
+                              setIsUploading(false)
+                              toast({
+                                title: 'Upload Error',
+                                description: `Failed to upload image: ${error.message}`,
+                                variant: 'destructive',
+                              })
+                            }}
+                          />
+                          {isUploading && (
+                            <div className="flex items-center justify-center mt-2 text-sm text-muted-foreground">
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Uploading image...
+                            </div>
+                          )}
+                          {form.watch('imageUrl') && (
+                            <div className="mt-2 text-sm text-green-600">
+                              ✓ Image uploaded successfully
+                            </div>
+                          )}
+                        </div>
                       </FormControl>
                       <FormDescription>
                         Upload an image for your memory.
@@ -196,7 +236,11 @@ export default function CreateMemoryPage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isLoading || isUploading}
+                >
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -213,7 +257,7 @@ export default function CreateMemoryPage() {
             <Button
               variant="outline"
               onClick={() => router.back()}
-              disabled={isLoading}
+              disabled={isLoading || isUploading}
             >
               Cancel
             </Button>

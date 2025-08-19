@@ -1,5 +1,6 @@
 import { createUploadthing, type FileRouter } from 'uploadthing/next'
 import { UploadThingError } from 'uploadthing/server'
+import { generateUploadDropzone } from '@uploadthing/react'
 
 const f = createUploadthing()
 
@@ -9,7 +10,7 @@ const auth = (req: Request) => ({ id: 'fakeId' })
 export const ourFileRouter = {
   imageUploader: f({
     image: {
-      maxFileSize: '8MB',
+      maxFileSize: '16MB',
     },
   })
     .middleware(async ({ req }) => {
@@ -32,3 +33,5 @@ export const ourFileRouter = {
 } satisfies FileRouter
 
 export type OurFileRouter = typeof ourFileRouter
+
+export const UploadDropzone = generateUploadDropzone<OurFileRouter>()

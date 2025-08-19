@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
 
-    // Validate input
+    
     const result = registerSchema.safeParse(body)
     if (!result.success) {
       return NextResponse.json({ message: "Invalid input", errors: result.error.errors }, { status: 400 })
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
 
     const { name, email, password } = result.data
 
-    // Connect to database
+    
     await connectToDatabase()
 
     // Check if user already exists
