@@ -4,16 +4,10 @@ import { authOptions } from '@/lib/auth'
 import { connectToDatabase } from '@/lib/mongodb'
 import { ChatMessage } from '@/models/chat-message'
 import { z } from 'zod'
+import { broadcastMessage } from '../stream/route'
 
 const messageSchema = z.object({
-  id: z.string(),
   content: z.string().min(1),
-  sender: z.object({
-    id: z.string(),
-    name: z.string(),
-    avatar: z.string().optional(),
-  }),
-  timestamp: z.date().or(z.string().transform((str) => new Date(str))),
 })
 
 export async function GET() {
@@ -22,33 +16,31 @@ export async function GET() {
     await connectToDatabase()
     console.log('[v0] Database connected successfully')
 
-    // Get the most recent 50 messages
+    // Get the most recent 50 messages with author populated
     const messages = await ChatMessage.find()
-      .sort({ timestamp: -1 })
+      .populate('author', 'name image')
+      .sort({ createdAt: -1 })
       .limit(50)
       .lean()
+
     console.log('[v0] Found', messages.length, 'messages')
 
-    // Transform messages to match frontend interface
     const transformedMessages = messages.reverse().map((msg: any) => ({
-      id: msg.messageId || msg._id.toString(),
+      _id: msg._id.toString(),
       content: msg.content,
-      sender: {
-        id: msg.sender.userId,
-        name: msg.sender.name,
-        avatar: msg.sender.avatar || '',
+      author: {
+        id: msg.author._id?.toString() || msg.author,
+        name: msg.author.name || 'Anonymous',
+        image: msg.author.image || '',
       },
-      timestamp: msg.timestamp,
+      createdAt: msg.createdAt,
     }))
 
-    return NextResponse.json({ messages: transformedMessages })
+    return NextResponse.json(transformedMessages)
   } catch (error) {
     console.error('[v0] Error fetching chat messages:', error)
     return NextResponse.json(
-      {
-        messages: [],
-        error: 'Failed to fetch messages',
-      },
+      { error: 'Failed to fetch messages' },
       { status: 500 }
     )
   }
@@ -90,42 +82,44 @@ export async function POST(req: Request) {
       )
     }
 
-    const { id, content, sender, timestamp } = result.data
-
-    if (sender.id !== userId) {
-      console.log('[v0] Sender ID mismatch:', sender.id, 'vs', userId)
-      return NextResponse.json(
-        { message: 'Sender ID does not match authenticated user' },
-        { status: 403 }
-      )
-    }
+    const { content } = result.data
 
     await connectToDatabase()
     console.log('[v0] Database connected, saving message')
 
-    // Save message to database
-    await ChatMessage.create({
-      messageId: id,
+    const newMessage = await ChatMessage.create({
       content,
-      sender: {
-        userId: sender.id,
-        name: sender.name,
-        avatar: sender.avatar || '',
-      },
-      timestamp,
+      author: userId,
+      createdAt: new Date(),
     })
 
-    console.log('[v0] Message saved successfully')
+    await newMessage.populate('author', 'name image')
+
+    const messageForBroadcast = {
+      _id: newMessage._id.toString(),
+      content: newMessage.content,
+      author: {
+        id: newMessage.author._id?.toString() || newMessage.author,
+        name: newMessage.author.name || 'Anonymous',
+        image: newMessage.author.image || '',
+      },
+      createdAt: newMessage.createdAt,
+    }
+
+    broadcastMessage({
+      type: 'new_message',
+      message: messageForBroadcast,
+    })
+
+    console.log('[v0] Message saved and broadcasted successfully')
     return NextResponse.json(
-      { message: 'Message saved successfully' },
+      { message: 'Message sent successfully' },
       { status: 201 }
     )
   } catch (error) {
     console.error('[v0] Error saving chat message:', error)
     return NextResponse.json(
-      {
-        message: 'Failed to save message',
-      },
+      { message: 'Failed to save message' },
       { status: 500 }
     )
   }
