@@ -11,42 +11,67 @@ const commentSchema = z.object({
 
 export async function GET(
   req: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { params } = context
+    const { id } = await params
+    console.log('[v0] Fetching comments for memory:', id)
 
     // Connect to database
     await connectToDatabase()
 
-    // Find memory with populated comments
-    const memory = await Memory.findById(params.id).populate(
-      'comments.author',
-      'name image'
-    )
+    const memory = (await Memory.findById(id)
+      .populate({
+        path: 'comments.author',
+        select: 'name image',
+        options: { lean: true },
+      })
+      .populate({
+        path: 'comments.replies.author',
+        select: 'name image',
+        options: { lean: true },
+      })
+      .lean()) as any
 
     if (!memory) {
       return NextResponse.json({ message: 'Memory not found' }, { status: 404 })
     }
 
-    // Transform comments to match the expected format
-    const transformedComments = memory.comments.map((comment: any) => ({
-      id: comment._id.toString(),
-      content: comment.content,
-      author: {
-        id: comment.author._id.toString(),
-        name: comment.author.name,
-        image: comment.author.image,
-      },
-      createdAt: comment.createdAt,
-      likes: comment.likes || 0,
-      replies: comment.replies || [],
-      isLiked: false, // TODO: Check if current user liked this comment
-    }))
+    console.log('[v0] Memory found, transforming comments')
 
+    const transformedComments = (memory.comments || []).map((comment: any) => {
+      const transformedReplies = (comment.replies || []).map((reply: any) => ({
+        id: reply._id?.toString() || '',
+        content: reply.content || '',
+        author: {
+          id: reply.author?._id?.toString() || '',
+          name: reply.author?.name || 'Unknown',
+          image: reply.author?.image || null,
+        },
+        createdAt: reply.createdAt,
+        likes: reply.likes || 0,
+        isLiked: false,
+      }))
+
+      return {
+        id: comment._id?.toString() || '',
+        content: comment.content || '',
+        author: {
+          id: comment.author?._id?.toString() || '',
+          name: comment.author?.name || 'Unknown',
+          image: comment.author?.image || null,
+        },
+        createdAt: comment.createdAt,
+        likes: comment.likes || 0,
+        replies: transformedReplies,
+        isLiked: false,
+      }
+    })
+
+    console.log('[v0] Comments transformed successfully')
     return NextResponse.json(transformedComments)
   } catch (error) {
-    console.error('Get comments error:', error)
+    console.error('[v0] Get comments error:', error)
     return NextResponse.json(
       { message: 'An error occurred while fetching comments' },
       { status: 500 }
@@ -56,10 +81,10 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { params } = context
+    const { id } = await params
 
     // Authenticate user
     const session = await getServerSession(authOptions)
@@ -83,7 +108,7 @@ export async function POST(
     await connectToDatabase()
 
     // Find memory
-    const memory = await Memory.findById(params.id)
+    const memory = await Memory.findById(id)
     if (!memory) {
       return NextResponse.json({ message: 'Memory not found' }, { status: 404 })
     }
@@ -100,13 +125,14 @@ export async function POST(
     memory.comments.push(comment)
     await memory.save()
 
-    // Get the newly added comment with author details
-    const populatedMemory = await Memory.findById(params.id).populate(
-      'comments.author',
-      'name image'
-    )
+    const populatedMemory = (await Memory.findById(id)
+      .populate({
+        path: 'comments.author',
+        select: 'name image',
+        options: { lean: true },
+      })
+      .lean()) as any
 
-    // Ensure populatedMemory exists
     if (!populatedMemory) {
       return NextResponse.json(
         { message: 'Failed to retrieve updated memory' },
@@ -115,25 +141,32 @@ export async function POST(
     }
 
     const newComment =
-      populatedMemory.comments[populatedMemory.comments.length - 1]
+      populatedMemory.comments?.[populatedMemory.comments.length - 1]
+
+    if (!newComment) {
+      return NextResponse.json(
+        { message: 'Failed to retrieve new comment' },
+        { status: 500 }
+      )
+    }
 
     const transformedComment = {
-      id: newComment._id.toString(),
-      content: newComment.content,
+      id: newComment._id?.toString() || '',
+      content: newComment.content || '',
       author: {
-        id: newComment.author._id.toString(),
-        name: newComment.author.name,
-        image: newComment.author.image,
+        id: newComment.author?._id?.toString() || '',
+        name: newComment.author?.name || 'Unknown',
+        image: newComment.author?.image || null,
       },
       createdAt: newComment.createdAt,
       likes: newComment.likes || 0,
-      replies: newComment.replies || [],
+      replies: [],
       isLiked: false,
     }
 
     return NextResponse.json(transformedComment, { status: 201 })
   } catch (error) {
-    console.error('Add comment error:', error)
+    console.error('[v0] Add comment error:', error)
     return NextResponse.json(
       { message: 'An error occurred while adding the comment' },
       { status: 500 }
