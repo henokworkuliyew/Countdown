@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button"
 import { getServerSession } from "next-auth"
 import { getLatestMemories } from "@/lib/memory-service"
 import HeroSection from "@/components/hero-section"
-import MainNavigation from "@/components/main-navigation"
 import { connectToDatabase } from "../lib/mongodb"
 import { authOptions } from "@/lib/auth"
 
@@ -15,7 +14,7 @@ export default async function HomePage() {
   
   return (
     <div className="min-h-screen flex flex-col">
-      <MainNavigation />
+      
       
       <main className="flex-1">
         <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
