@@ -1,5 +1,7 @@
 'use client'
 
+import type React from 'react'
+
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -26,9 +28,9 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Upload, ImageIcon, CheckCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { UploadButton } from '@/lib/uploadthing'
+import { useUploadThing } from '@/lib/core'
 
 const memorySchema = z.object({
   title: z
@@ -39,7 +41,7 @@ const memorySchema = z.object({
     .string()
     .min(10, { message: 'Description must be at least 10 characters' })
     .max(1000),
-  imageUrl: z.string().min(1, { message: 'Please upload an image' }),
+  imageUrl: z.string().optional(),
 })
 
 type MemoryFormValues = z.infer<typeof memorySchema>
@@ -48,8 +50,23 @@ export default function CreateMemoryPage() {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<string>('')
   const { toast } = useToast()
+
+  const { startUpload } = useUploadThing('imageUploader', {
+    onClientUploadComplete: (
+      res: { url: string; key: string; name: string; size: number }[]
+    ) => {
+      console.log('[v0] Upload completed:', res)
+      setUploadProgress('Upload completed successfully!')
+    },
+    onUploadError: (error: Error) => {
+      console.error('[v0] Upload error:', error)
+      setError(`Upload failed: ${error.message}`)
+      setUploadProgress('')
+    },
+  })
 
   const form = useForm<MemoryFormValues>({
     resolver: zodResolver(memorySchema),
@@ -60,17 +77,52 @@ export default function CreateMemoryPage() {
     },
   })
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select a valid image file')
+        return
+      }
+      // Validate file size (max 4MB)
+      if (file.size > 4 * 1024 * 1024) {
+        setError('Image size must be less than 4MB')
+        return
+      }
+      setSelectedFile(file)
+      setError(null)
+      console.log('[v0] File selected:', file.name, file.size)
+    }
+  }
+
   async function onSubmit(data: MemoryFormValues) {
     try {
       setIsLoading(true)
       setError(null)
+      let imageUrl = ''
 
-      if (!data.imageUrl) {
-        setError('Please upload an image before submitting.')
+      // Upload image if file is selected
+      if (selectedFile) {
+        setUploadProgress('Uploading image...')
+        console.log('[v0] Starting upload for file:', selectedFile.name)
+
+        const uploadResult = await startUpload([selectedFile])
+
+        if (uploadResult && uploadResult[0] && uploadResult[0].url) {
+          imageUrl = uploadResult[0].url
+          setUploadProgress('Image uploaded successfully!')
+          console.log('[v0] Upload successful, URL:', imageUrl)
+        } else {
+          throw new Error('Upload failed - no URL returned')
+        }
+      } else {
+        setError('Please select an image to upload')
         return
       }
 
-      console.log('[v0] Submitting memory with data:', data)
+      setUploadProgress('Creating memory...')
+      console.log('[v0] Submitting memory with data:', { ...data, imageUrl })
 
       const response = await fetch('/api/memories', {
         method: 'POST',
@@ -80,7 +132,7 @@ export default function CreateMemoryPage() {
         body: JSON.stringify({
           title: data.title,
           description: data.description,
-          imageUrl: data.imageUrl,
+          imageUrl: imageUrl,
         }),
       })
 
@@ -92,8 +144,8 @@ export default function CreateMemoryPage() {
       }
 
       toast({
-        title: 'Memory created',
-        description: 'Your memory has been shared successfully!',
+        title: 'Memory created successfully!',
+        description: `Your memory "${data.title}" has been shared with the community.`,
       })
 
       router.push(`/memories/${result.memory._id}`)
@@ -101,28 +153,41 @@ export default function CreateMemoryPage() {
     } catch (error) {
       setError('An unexpected error occurred. Please try again.')
       console.error('Create memory error:', error)
+      setUploadProgress('')
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12">
       <div className="container mx-auto px-4">
-        <Card className="max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle className="text-2xl">Share a Memory</CardTitle>
-            <CardDescription>
+        <Card className="max-w-2xl mx-auto shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="text-center pb-6">
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Share a Memory
+            </CardTitle>
+            <CardDescription className="text-lg text-gray-600">
               Share your favorite moments from your time at Bahirdar University
               Computer Science Department.
             </CardDescription>
           </CardHeader>
           <CardContent>
             {error && (
-              <Alert variant="destructive" className="mb-4">
+              <Alert variant="destructive" className="mb-6">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+
+            {uploadProgress && (
+              <Alert className="mb-6 border-blue-200 bg-blue-50">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <AlertDescription className="text-blue-700">
+                  {uploadProgress}
+                </AlertDescription>
+              </Alert>
+            )}
+
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
@@ -133,138 +198,138 @@ export default function CreateMemoryPage() {
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Title</FormLabel>
+                      <FormLabel className="text-base font-semibold">
+                        Title
+                      </FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Enter a title for your memory"
+                          placeholder="Enter a meaningful title for your memory"
                           {...field}
                           disabled={isLoading}
+                          className="h-12 text-base"
                         />
                       </FormControl>
                       <FormDescription>
-                        Give your memory a meaningful title.
+                        Give your memory a title that captures the moment.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description</FormLabel>
+                      <FormLabel className="text-base font-semibold">
+                        Description
+                      </FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Describe your memory..."
-                          className="min-h-32"
+                          placeholder="Tell the story behind this memory... What made this moment special?"
+                          className="min-h-32 text-base resize-none"
                           {...field}
                           disabled={isLoading}
                         />
                       </FormControl>
                       <FormDescription>
-                        Share the story behind this memory.
+                        Share the story and emotions behind this memory.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="imageUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Image</FormLabel>
-                      <FormControl>
-                        <div className="space-y-4">
-                          <UploadButton
-                            endpoint="imageUploader"
-                            onUploadBegin={() => {
-                              console.log('[v0] Upload started')
-                              setIsUploading(true)
-                              setError(null)
-                            }}
-                            onClientUploadComplete={(res) => {
-                              console.log('[v0] Upload completed:', res)
-                              if (res && res[0] && res[0].url) {
-                                form.setValue('imageUrl', res[0].url)
-                                form.clearErrors('imageUrl')
-                                toast({
-                                  title: 'Upload successful',
-                                  description:
-                                    'Your image has been uploaded successfully!',
-                                })
-                              } else {
-                                console.error(
-                                  '[v0] No URL returned from upload'
-                                )
-                                setError(
-                                  'Upload completed but no URL was returned. Please try again.'
-                                )
-                              }
-                              setIsUploading(false)
-                            }}
-                            onUploadError={(error) => {
-                              console.error('[v0] Upload error:', error)
-                              setError(`Upload failed: ${error.message}`)
-                              setIsUploading(false)
-                              toast({
-                                title: 'Upload Error',
-                                description: `Failed to upload image: ${error.message}`,
-                                variant: 'destructive',
-                              })
-                            }}
-                          />
-                          {isUploading && (
-                            <div className="flex items-center justify-center mt-2 text-sm text-muted-foreground">
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Uploading image...
-                            </div>
-                          )}
-                          {form.watch('imageUrl') && (
-                            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
-                              <div className="text-sm text-green-600 font-medium">
-                                ✓ Image uploaded successfully
-                              </div>
-                              <div className="text-xs text-green-500 mt-1 break-all">
-                                {form.watch('imageUrl')}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </FormControl>
-                      <FormDescription>
-                        Upload an image for your memory.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
+                <FormItem>
+                  <FormLabel className="text-base font-semibold">
+                    Image
+                  </FormLabel>
+                  <FormControl>
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileSelect}
+                          disabled={isLoading}
+                          className="hidden"
+                          id="image-upload"
+                        />
+                        <label
+                          htmlFor="image-upload"
+                          className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            {selectedFile ? (
+                              <>
+                                <CheckCircle className="w-8 h-8 mb-2 text-green-500" />
+                                <p className="text-sm text-green-600 font-medium">
+                                  {selectedFile.name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {(selectedFile.size / 1024 / 1024).toFixed(2)}{' '}
+                                  MB
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <ImageIcon className="w-8 h-8 mb-2 text-gray-400" />
+                                <p className="text-sm text-gray-500">
+                                  <span className="font-semibold">
+                                    Click to select
+                                  </span>{' '}
+                                  an image
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  PNG, JPG, GIF up to 4MB
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </FormControl>
+                  <FormDescription>
+                    Select an image that represents your memory. It will be
+                    uploaded when you share.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+
                 <Button
                   type="submit"
-                  className="w-full"
-                  disabled={isLoading || isUploading}
+                  className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
+                  disabled={isLoading || !selectedFile}
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating memory...
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      {uploadProgress || 'Processing...'}
                     </>
                   ) : (
-                    'Share Memory'
+                    <>
+                      <Upload className="mr-2 h-5 w-5" />
+                      Share Memory
+                    </>
                   )}
                 </Button>
               </form>
             </Form>
           </CardContent>
-          <CardFooter className="flex justify-between">
+          <CardFooter className="flex justify-between pt-6">
             <Button
               variant="outline"
               onClick={() => router.back()}
-              disabled={isLoading || isUploading}
+              disabled={isLoading}
+              className="px-6"
             >
               Cancel
             </Button>
+            <p className="text-sm text-gray-500">
+              Your memory will be visible to all CS students
+            </p>
           </CardFooter>
         </Card>
       </div>
