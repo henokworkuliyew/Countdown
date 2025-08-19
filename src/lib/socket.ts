@@ -1,48 +1,49 @@
 import type { Server as NetServer } from 'http'
-import { Server as SocketIOServer } from 'socket.io'
 import type { NextApiRequest } from 'next'
-import type { NextApiResponse } from 'next'
+import { Server as ServerIO } from 'socket.io'
+import type { NextApiResponseServerIO } from '@/types/socket'
 
-export type NextApiResponseWithSocket = NextApiResponse & {
-  socket: {
-    server: NetServer & {
-      io?: SocketIOServer
-    }
-  }
+export const config = {
+  api: {
+    bodyParser: false,
+  },
 }
 
-export const initializeSocket = (
-  req: NextApiRequest,
-  res: NextApiResponseWithSocket
-) => {
-  if (!res.socket.server.io) {
-    console.log('Initializing Socket.io server...')
-    const io = new SocketIOServer(res.socket.server)
+const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
+  if (res.socket.server.io) {
+    console.log('[v0] Socket is already running')
+  } else {
+    console.log('[v0] Socket is initializing')
+    const httpServer: NetServer = res.socket.server as any
+    const io = new ServerIO(httpServer, {
+      path: '/api/socket/io',
+      addTrailingSlash: false,
+      cors: {
+        origin: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+        methods: ['GET', 'POST'],
+      },
+    })
     res.socket.server.io = io
 
     io.on('connection', (socket) => {
-      console.log(`Client connected: ${socket.id}`)
+      console.log('[v0] User connected:', socket.id)
 
-      socket.on('join-room', (roomId: string) => {
-        console.log(`Socket ${socket.id} joining room: ${roomId}`)
-        socket.join(roomId)
+      socket.on('join-chat', (userId) => {
+        socket.join('chat-room')
+        console.log('[v0] User joined chat room:', userId)
       })
 
-      socket.on('leave-room', (roomId: string) => {
-        console.log(`Socket ${socket.id} leaving room: ${roomId}`)
-        socket.leave(roomId)
-      })
-
-      socket.on('send-message', (data: { roomId: string; message: any }) => {
-        console.log(`New message in room ${data.roomId}:`, data.message)
-        io.to(data.roomId).emit('new-message', data.message)
+      socket.on('send-message', (message) => {
+        console.log('[v0] Broadcasting message:', message.id)
+        io.to('chat-room').emit('new-message', message)
       })
 
       socket.on('disconnect', () => {
-        console.log(`Client disconnected: ${socket.id}`)
+        console.log('[v0] User disconnected:', socket.id)
       })
     })
   }
-
-  return res.socket.server.io
+  res.end()
 }
+
+export default SocketHandler

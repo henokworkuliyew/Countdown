@@ -82,7 +82,11 @@ export default async function ChatPage() {
                 </div>
               </div>
               <div className="mt-4">
-                <Button variant="outline" className="w-full" asChild>
+                <Button
+                  variant="outline"
+                  className="w-full bg-transparent"
+                  asChild
+                >
                   <Link href="/events">View All Events</Link>
                 </Button>
               </div>

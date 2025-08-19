@@ -11,7 +11,20 @@ import { authOptions } from '@/lib/auth'
 export default async function MemoriesPage() {
   const session = await getServerSession(authOptions)
   const memories = await getAllMemories()
+  if(!session) {
+    return (  
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-8">
+          <h1 className="text-2xl font-semibold mb-4">Memories</h1>
+          <p className="mb-4">Please sign in to view memories.</p>
+          <Button asChild>
+            <Link href="/auth/login">Sign In</Link>
+          </Button>
+        </div>
+      </div>
 
+      )
+  }
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-blue-900 text-white py-16">
