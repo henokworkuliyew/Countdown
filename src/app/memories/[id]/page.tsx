@@ -1,26 +1,24 @@
+// Converting to proper Server Component structure
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { getMemoryById } from '@/lib/memory-service'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { formatDistanceToNow } from 'date-fns'
-import { Heart, MessageCircle, Share2, ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { notFound } from 'next/navigation'
-import CommentSection from '@/components/comment-section'
 import { authOptions } from '@/lib/auth'
+import MemoryView from '@/components/memory-view'
 
 interface MemoryPageProps {
-  params: Promise<{
-    id: string
-  }>
+  params: Promise<{ id: string }>
 }
 
 export default async function MemoryPage({ params }: MemoryPageProps) {
   const { id } = await params
   const session = await getServerSession(authOptions)
   const memory = await getMemoryById(id)
-
+  const currentUser = session?.user || null
   if (!memory) {
     notFound()
   }
@@ -35,90 +33,9 @@ export default async function MemoryPage({ params }: MemoryPageProps) {
         </Button>
 
         <Suspense fallback={<MemoryLoading />}>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg overflow-hidden shadow-md">
-                <div className="relative h-[400px]">
-                  <img
-                    src={memory.imageUrl || '/placeholder.svg'}
-                    alt={memory.title}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="h-10 w-10 rounded-full overflow-hidden bg-blue-100">
-                      <img
-                        src={
-                          memory.author.image ||
-                          '/placeholder.svg?height=40&width=40'
-                        }
-                        alt={memory.author.name}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <div>
-                      <p className="font-medium">{memory.author.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {formatDistanceToNow(new Date(memory.createdAt), {
-                          addSuffix: true,
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                  <h1 className="text-3xl font-bold mb-4">{memory.title}</h1>
-                  <p className="text-gray-700 whitespace-pre-line">
-                    {memory.description}
-                  </p>
-
-                  <div className="flex items-center gap-6 mt-8 pt-4 border-t">
-                    <Button variant="ghost" className="gap-2">
-                      <Heart className="h-5 w-5" />
-                      <span>{memory.likes}</span>
-                    </Button>
-                    <Button variant="ghost" className="gap-2">
-                      <MessageCircle className="h-5 w-5" />
-                      <span>{memory.comments.length}</span>
-                    </Button>
-                    <Button variant="ghost" className="gap-2">
-                      <Share2 className="h-5 w-5" />
-                      <span>Share</span>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="lg:col-span-1">
-              <Card>
-                <CardContent className="p-6">
-                  <CommentSection
-                    memoryId={memory._id.toString()}
-                    comments={memory.comments}
-                    onAddComment={async (content: string) => {
-                      // TODO: Implement add comment functionality
-                      console.log('[v0] Adding comment:', content)
-                    }}
-                    onLikeComment={async (commentId: string) => {
-                      // TODO: Implement like comment functionality
-                      console.log('[v0] Liking comment:', commentId)
-                    }}
-                    onReplyToComment={async (
-                      commentId: string,
-                      content: string
-                    ) => {
-                      // TODO: Implement reply to comment functionality
-                      console.log(
-                        '[v0] Replying to comment:',
-                        commentId,
-                        content
-                      )
-                    }}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+          {/* Using MemoryView Client Component to handle all interactions */}
+          {/* Added key prop to prevent React from reusing components incorrectly */}
+          <MemoryView key={id} memoryId={id} currentUser={currentUser} />
         </Suspense>
       </div>
     </div>
