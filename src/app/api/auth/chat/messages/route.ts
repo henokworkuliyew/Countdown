@@ -3,8 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { connectToDatabase } from '@/lib/mongodb'
 import { ChatMessage } from '@/models/chat-message'
+import { broadcastMessage } from '@/lib/chat-broadcast'
 import { z } from 'zod'
-import { broadcastMessage } from '../stream/route'
 
 const messageSchema = z.object({
   content: z.string().min(1),
