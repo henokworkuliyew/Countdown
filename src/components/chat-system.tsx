@@ -3,7 +3,7 @@
 import type React from 'react'
 import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
-import { useSocket } from '@/hooks/use-socket'
+import { useChatStream } from '@/hooks/use-chat-stream'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -11,142 +11,42 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Send, Users, Circle } from 'lucide-react'
 
 interface Message {
-  id: string
+  _id: string
   content: string
-  sender: {
+  author: {
     id: string
     name: string
-    avatar?: string
+    image?: string
   }
-  timestamp: Date | string
-}
-
-interface OnlineUser {
-  id: string
-  name: string
-  avatar?: string
+  createdAt: string
 }
 
 export default function ChatSystem() {
   const { data: session } = useSession()
-  const { socket, isConnected } = useSocket()
-  const [messages, setMessages] = useState<Message[]>([])
-  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([])
+  const { messages, isConnected, onlineUsers, sendMessage } = useChatStream()
   const [newMessage, setNewMessage] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const loadMessages = async () => {
-      try {
-        console.log('[v0] Loading messages...')
-        const response = await fetch('/api/chat/messages')
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const contentType = response.headers.get('content-type')
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new Error('Response is not JSON')
-        }
-
-        const data = await response.json()
-        console.log('[v0] Loaded messages:', data.messages?.length || 0)
-        setMessages(data.messages || [])
-      } catch (error) {
-        console.error('[v0] Error loading messages:', error)
-        setMessages([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadMessages()
-  }, [])
-
-  useEffect(() => {
-    if (!socket || !session) return
-
-    const userData = {
-      id: session.user.id || session.user || (session.user as any)?.userId,
-      name: session.user.name || 'Anonymous',
-      avatar: session.user.image || '',
-    }
-
-    socket.emit('join-chat', userData)
-
-    socket.on('online-users', (users: OnlineUser[]) => {
-      console.log('[v0] Online users updated:', users.length)
-      setOnlineUsers(users)
-    })
-
-    socket.on('new-message', (message: Message) => {
-      console.log('[v0] Received new message:', message.id)
-      setMessages((prev) => [...prev, message])
-    })
-
-    return () => {
-      socket.off('new-message')
-      socket.off('online-users')
-    }
-  }, [socket, session])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !session || !socket) return
-
-    const userId =
-      session.user.id || session.user || (session.user as any)?.userId
-    const message: Message = {
-      id: Date.now().toString(),
-      content: newMessage.trim(),
-      sender: {
-        id: userId,
-        name: session.user.name || 'Anonymous',
-        avatar: session.user.image || '',
-      },
-      timestamp: new Date(),
-    }
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !session) return
 
     try {
-      setMessages((prev) => [...prev, message])
+      await sendMessage(newMessage.trim())
       setNewMessage('')
-
-      const response = await fetch('/api/chat/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(message),
-      })
-
-      if (response.ok) {
-        socket.emit('send-message', message)
-      } else {
-        setMessages((prev) => prev.filter((m) => m.id !== message.id))
-        console.error('[v0] Failed to save message')
-      }
     } catch (error) {
       console.error('[v0] Error sending message:', error)
-      setMessages((prev) => prev.filter((m) => m.id !== message.id))
     }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      sendMessage()
+      handleSendMessage()
     }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="h-[600px] bg-white rounded-lg shadow-md flex items-center justify-center">
-        <div className="text-gray-500">Loading chat...</div>
-      </div>
-    )
   }
 
   return (
@@ -160,23 +60,27 @@ export default function ChatSystem() {
         </div>
         <ScrollArea className="h-[calc(600px-73px)]">
           <div className="p-2 space-y-2">
-            {onlineUsers.map((user) => (
-              <div
-                key={user.id}
-                className="flex items-center gap-2 p-2 rounded hover:bg-gray-100"
-              >
-                <Avatar className="w-6 h-6">
-                  <AvatarImage src={user.avatar || '/placeholder.svg'} />
-                  <AvatarFallback className="text-xs">
-                    {user.name.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-sm text-gray-700 truncate">
-                  {user.name}
-                </span>
-                <Circle className="w-2 h-2 fill-green-500 text-green-500 ml-auto" />
+            {onlineUsers.length > 0 ? (
+              onlineUsers.map((userId) => (
+                <div
+                  key={userId}
+                  className="flex items-center gap-2 p-2 rounded hover:bg-gray-100"
+                >
+                  <Avatar className="w-6 h-6">
+                    <AvatarImage src="/placeholder.svg" />
+                    <AvatarFallback className="text-xs">U</AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm text-gray-700 truncate">
+                    User {userId.slice(-4)}
+                  </span>
+                  <Circle className="w-2 h-2 fill-green-500 text-green-500 ml-auto" />
+                </div>
+              ))
+            ) : (
+              <div className="p-2 text-sm text-gray-500 text-center">
+                No users online
               </div>
-            ))}
+            )}
           </div>
         </ScrollArea>
       </div>
@@ -201,31 +105,37 @@ export default function ChatSystem() {
 
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-4">
-            {messages.map((message) => (
-              <div key={message.id} className="flex gap-3">
-                <Avatar className="w-8 h-8">
-                  <AvatarImage
-                    src={message.sender.avatar || '/placeholder.svg'}
-                  />
-                  <AvatarFallback>
-                    {message.sender.name.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-sm text-gray-900">
-                      {message.sender.name}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {new Date(message.timestamp).toLocaleTimeString()}
-                    </span>
+            {messages.length > 0 ? (
+              messages.map((message) => (
+                <div key={message._id} className="flex gap-3">
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage
+                      src={message.author.image || '/placeholder.svg'}
+                    />
+                    <AvatarFallback>
+                      {message.author.name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-sm text-gray-900">
+                        {message.author.name}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(message.createdAt).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <p className="text-gray-800 text-sm leading-relaxed">
+                      {message.content}
+                    </p>
                   </div>
-                  <p className="text-gray-800 text-sm leading-relaxed">
-                    {message.content}
-                  </p>
                 </div>
+              ))
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                <p>No messages yet. Start the conversation!</p>
               </div>
-            ))}
+            )}
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
@@ -241,7 +151,7 @@ export default function ChatSystem() {
               disabled={!isConnected}
             />
             <Button
-              onClick={sendMessage}
+              onClick={handleSendMessage}
               disabled={!newMessage.trim() || !isConnected}
               size="sm"
             >
