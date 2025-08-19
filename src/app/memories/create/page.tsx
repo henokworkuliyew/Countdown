@@ -28,7 +28,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { UploadDropzone } from '@/lib/uploadthing'
+import { UploadButton } from '@/lib/uploadthing'
 
 const memorySchema = z.object({
   title: z
@@ -176,9 +176,8 @@ export default function CreateMemoryPage() {
                     <FormItem>
                       <FormLabel>Image</FormLabel>
                       <FormControl>
-                        <div>
-                          <UploadDropzone
-                            className="p-2 border border-gray-600"
+                        <div className="space-y-4">
+                          <UploadButton
                             endpoint="imageUploader"
                             onUploadBegin={() => {
                               console.log('[v0] Upload started')
@@ -223,8 +222,13 @@ export default function CreateMemoryPage() {
                             </div>
                           )}
                           {form.watch('imageUrl') && (
-                            <div className="mt-2 text-sm text-green-600">
-                              ✓ Image uploaded successfully
+                            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                              <div className="text-sm text-green-600 font-medium">
+                                ✓ Image uploaded successfully
+                              </div>
+                              <div className="text-xs text-green-500 mt-1 break-all">
+                                {form.watch('imageUrl')}
+                              </div>
                             </div>
                           )}
                         </div>
