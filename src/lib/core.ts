@@ -3,6 +3,7 @@ import { UploadThingError } from 'uploadthing/server'
 import {
   generateUploadDropzone,
   generateUploadButton,
+  generateReactHelpers,
 } from '@uploadthing/react'
 
 const f = createUploadthing({
@@ -58,5 +59,6 @@ export const ourFileRouter = {
 
 export type OurFileRouter = typeof ourFileRouter
 
+export const { useUploadThing } = generateReactHelpers<OurFileRouter>()
 export const UploadDropzone = generateUploadDropzone<OurFileRouter>()
 export const UploadButton = generateUploadButton<OurFileRouter>()
