@@ -29,12 +29,26 @@ export async function GET() {
       .lean()
     console.log('[v0] Found', messages.length, 'messages')
 
-    // Return messages in chronological order
-    return NextResponse.json({ messages: messages.reverse() })
+    // Transform messages to match frontend interface
+    const transformedMessages = messages.reverse().map((msg: any) => ({
+      id: msg.messageId || msg._id.toString(),
+      content: msg.content,
+      sender: {
+        id: msg.sender.userId,
+        name: msg.sender.name,
+        avatar: msg.sender.avatar || '',
+      },
+      timestamp: msg.timestamp,
+    }))
+
+    return NextResponse.json({ messages: transformedMessages })
   } catch (error) {
     console.error('[v0] Error fetching chat messages:', error)
     return NextResponse.json(
-      { message: 'Error fetching chat messages' },
+      {
+        messages: [],
+        error: 'Failed to fetch messages',
+      },
       { status: 500 }
     )
   }
@@ -109,7 +123,9 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('[v0] Error saving chat message:', error)
     return NextResponse.json(
-      { message: 'Error saving chat message' },
+      {
+        message: 'Failed to save message',
+      },
       { status: 500 }
     )
   }

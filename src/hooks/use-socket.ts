@@ -8,8 +8,11 @@ export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false)
 
   useEffect(() => {
-    const socketPort = process.env.NEXTAUTH_URL || '3000'
-    const socketUrl = `http://localhost:${socketPort}`
+    const socketPort = process.env.NEXT_PUBLIC_SOCKET_PORT || '3001'
+    const socketUrl =
+      process.env.NODE_ENV === 'production'
+        ? `${window.location.protocol}//${window.location.hostname}:${socketPort}`
+        : `http://localhost:${socketPort}`
 
     const socketInstance = io(socketUrl, {
       transports: ['websocket', 'polling'],
@@ -25,6 +28,11 @@ export const useSocket = () => {
 
     socketInstance.on('disconnect', () => {
       console.log('[v0] Socket disconnected')
+      setIsConnected(false)
+    })
+
+    socketInstance.on('connect_error', (error) => {
+      console.error('[v0] Socket connection error:', error)
       setIsConnected(false)
     })
 
