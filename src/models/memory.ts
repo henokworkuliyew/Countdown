@@ -1,12 +1,20 @@
 import mongoose, { Schema, type Document } from 'mongoose'
 
+interface IReply {
+  _id: mongoose.Types.ObjectId
+  content: string
+  author: mongoose.Types.ObjectId
+  createdAt: Date
+  likes: number
+}
+
 interface IComment {
   _id: mongoose.Types.ObjectId
   content: string
   author: mongoose.Types.ObjectId
   createdAt: Date
   likes: number
-  replies: IComment[]
+  replies: IReply[] // Using IReply instead of IComment to break circular reference
 }
 
 export interface IMemory extends Document {
@@ -19,6 +27,27 @@ export interface IMemory extends Document {
   createdAt: Date
   updatedAt: Date
 }
+
+const ReplySchema = new Schema(
+  {
+    content: {
+      type: String,
+      required: true,
+    },
+    author: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    likes: {
+      type: Number,
+      default: 0,
+    },
+  },
+  {
+    timestamps: true,
+  }
+)
 
 const CommentSchema = new Schema(
   {
@@ -35,23 +64,7 @@ const CommentSchema = new Schema(
       type: Number,
       default: 0,
     },
-    replies: [
-      {
-        content: String,
-        author: {
-          type: Schema.Types.ObjectId,
-          ref: 'User',
-        },
-        createdAt: {
-          type: Date,
-          default: Date.now,
-        },
-        likes: {
-          type: Number,
-          default: 0,
-        },
-      },
-    ],
+    replies: [ReplySchema], // Using ReplySchema instead of inline definition
   },
   {
     timestamps: true,
